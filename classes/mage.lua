@@ -34,11 +34,12 @@ local HotStreakHandler = {}
 HotStreakHandler.init = function(self, talentName)
     local fire_blast = { 2136, 2137, 2138, 8412, 8413, 10197, 10199, 27078, 27079, 42872, 42873 }
     local fire_blast_sod = { 400618, 400619, 400616, 400620, 400621, 400622, 400623 } -- Improved by Overheat rune
+    local inferno_blast = { 108853, 118280 }
     local fireball = { 133, 143, 145, 3140, 8400, 8401, 8402, 10148, 10149, 10150, 10151, 25306, 27070, 38692, 42832, 42833 }
     local frostfire_bolt = { 44614, 47610 }
     local frostfire_bolt_sod = { 401502 }
-    -- local living_bomb = { 44457, 55359, 55360 } this is the DOT effect, which we do NOT want
-    local living_bomb = { 44461, 55361, 55362 }
+    local living_bomb = { 44457, 55359, 55360 } this is the DOT effect, which we do NOT want
+    local living_bomb = { 44461, 55361, 55362, 82886 }
     -- local living_bomb_sod = { 400613 } this is the DOT effect, which we do NOT want
     local living_bomb_sod = { 401731 }
     local scorch = { 2948, 8444, 8445, 8446, 10205, 10206, 10207, 27073, 27074, 42858, 42859 }
@@ -57,17 +58,20 @@ HotStreakHandler.init = function(self, talentName)
     addSpellPack(frostfire_bolt);
     addSpellPack(frostfire_bolt_sod);
     addSpellPack(scorch);
-    if SAO.IsCata() then
+    if SAO.IsCata() or SAO.IsMoP() then
         addSpellPack(pyroblast_cata);
     else
         addSpellPack(living_bomb);
         addSpellPack(living_bomb_sod);
     end
     addSpellPack(balefire_bolt_sod);
+    if SAO.IsMoP() then
+        addSpellPack(inferno_blast); -- I haven't tested fire yet
+    end
 
-    local _, _, tab, index = SAO:GetTalentByName(talentName);
-    if (tab and index) then
-        self.talent = { tab, index }
+    local known, row, column = SAO:GetTalentByName(talentName);
+    if (tab and index and known) then
+        self.talent = { row, column }
     end
 
     -- There are 4 states possible: cold, heating_up, hot_streak and hot_streak_heating_up
@@ -99,11 +103,8 @@ HotStreakHandler.hasHotStreakTalent = function(self)
         return false;
     end
 
-    -- Talent information must include at least one point in Hot Streak
-    -- This may not be accurate, but it's almost impossible to do better
-    -- Not to mention, almost no one will play with only 1 or 2 points
-    local rank = select(5, GetTalentInfo(self.talent[1], self.talent[2]));
-    return rank > 0;
+    local _, _, _, _, _, _, _, _, _, talKnown C_SpecializationInfo.GetTalentInfo({ column = 2, row = 5 });
+    return talKnown;
 end
 
 local function activateHeatingUp(self, spellID)
@@ -259,7 +260,7 @@ local FrozenHandler = {
     fakeSpellID = 5276+1000000, -- For option testing
 
     saoTexture = "frozen_fingers",
-    saoPosition = SAO.IsCata() and "Top" or "Top (CW)"; -- Re-orient in Cataclysm because former effect had different orientation
+    saoPosition = (SAO.IsCata() or SAO.IsMoP()) and "Top" or "Top (CW)"; -- Re-orient in Cataclysm because former effect had different orientation
     saoScaleFactor = (SAO.IsEra() or SAO.IsTBC()) and 1 or 0.75, -- Scaling down on Wrath and Cataclysm because of conflict
 
     -- Constants that will be initialized at init()
@@ -472,7 +473,7 @@ local function customLogin(self, ...)
     local hotStreakSpellName;
     if SAO.IsSoD() then
         hotStreakSpellName = GetSpellInfo(hotStreakSoDSpellID);
-    elseif SAO.IsCata() then
+    elseif SAO.IsCata() or SAO.IsMoP() then
         hotStreakSpellName = GetSpellInfo(improvedHotStreakSpellID);
     else
         hotStreakSpellName = GetSpellInfo(hotStreakSpellID);
@@ -527,7 +528,7 @@ local function lazyCreateClearcastingVariants(self)
     local weakText = PET_BATTLE_COMBAT_LOG_DAMAGE_WEAK:gsub("[ ()]","");
     local strongText = PET_BATTLE_COMBAT_LOG_DAMAGE_STRONG:gsub("[ ()]","");
 
-    clearcastingVariants = self:CreateTextureVariants(spellID, 0, {
+    clearcastingVariants = self:CreateTextureVariants(spellID, 0, {});
         self:TextureVariantValue(textureVariant1, false, weakText),
         self:TextureVariantValue(textureVariant2, false, strongText),
     });
@@ -558,7 +559,7 @@ local function useArcaneMissiles()
 
     SAO:CreateEffect(
         "arcane_missiles",
-        SAO.CATA,
+        SAO.IsMoP() and SAO.MOP or SAO.CATA,  -- have not tested arcane yet either
         arcaneMissilesBuff,
         "aura",
         {
@@ -581,13 +582,13 @@ local function registerClass(self)
     end
     if self.IsSoD() then
         self:RegisterAura("hot_streak_full", 0, hotStreakSoDSpellID, "hot_streak", "Left + Right (Flipped)", 1, 255, 255, 255, true, { (GetSpellInfo(pyroblast)) });
-    elseif self.IsCata() then
+    elseif self.IsCata() or self.IsMoP() then
         self:RegisterAura("hot_streak_full", 0, hotStreakSpellID, "hot_streak", "Left + Right (Flipped)", 1, 255, 255, 255, true, { pyroblastBang });
     else
         self:RegisterAura("hot_streak_full", 0, hotStreakSpellID, "hot_streak", "Left + Right (Flipped)", 1, 255, 255, 255, true, { (GetSpellInfo(pyroblast)) });
     end
     self:RegisterAura("hot_streak_half", 0, heatingUpSpellID, "hot_streak", "Left + Right (Flipped)", 0.5, 255, 255, 255, false); -- Does not exist, but define it for option testing
-    if not self.IsCata() then
+    if not self.IsCata() and not self.IsMoP() then
         self:RegisterAura("hot_streak_duo", 0, hotStreakHeatingUpSpellID, "hot_streak", "Left + Right (Flipped)", 0.5, 255, 255, 255, false); -- Does not exist, but define it for option testing
         self:RegisterAura("hot_streak_duo", 0, hotStreakHeatingUpSpellID, "hot_streak", "Left + Right (Flipped)", 1, 255, 255, 255, true); -- Does not exist, but define it for option testing
     end
@@ -611,8 +612,13 @@ local function registerClass(self)
         self:RegisterAura("fingers_of_frost_1", 1, 44544, "frozen_fingers", "Left (CCW)", 1.1, 222, 222, 222, true, iceLanceAndDeepFreeze);
         self:RegisterAura("fingers_of_frost_2", 2, 44544, "frozen_fingers", "Left (CCW)", 1.1, 222, 222, 222, true, iceLanceAndDeepFreeze);
         self:RegisterAura("fingers_of_frost_2", 2, 44544, "frozen_fingers", "Right (CW)", 1.1, 222, 222, 222, true); -- no need to re-glow iceLanceAndDeepFreeze for right texture
+    elseif self.IsMoP() then
+        local iceLanceAndDeepFreeze = { (GetSpellInfo(FrozenHandler.ice_lance[1])), (GetSpellInfo(FrozenHandler.deep_freeze[1])) };
+         -- Slightly bigger to avoid overlap with Arcane Missiles, and slightly dimmer to compensate
+        self:RegisterAura("fingers_of_frost_1", 1, 44544, "frozen_fingers", "Left", 1.1, 222, 222, 222, true, iceLanceAndDeepFreeze);
+        self:RegisterAura("fingers_of_frost_2", 2, 44544, "frozen_fingers", "Left + Right (Flipped)", 1.1, 222, 222, 222, true, iceLanceAndDeepFreeze);
     end
-    if not self.IsCata() then
+    if not self.IsCata() and not self.IsMoP() then
         self:RegisterAura("freeze", 0, FrozenHandler.fakeSpellID, FrozenHandler.saoTexture, "Top (CW)", FrozenHandler.saoScaleFactor, 255, 255, 255, false);
     else
         self:RegisterAura("freeze", 0, FrozenHandler.fakeSpellID, FrozenHandler.saoTexture, "Top", FrozenHandler.saoScaleFactor, 255, 255, 255, false);
@@ -623,6 +629,8 @@ local function registerClass(self)
         self:RegisterAura("brain_freeze", 0, 57761, "brain_freeze", "Top", 1, 255, 255, 255, true, { (GetSpellInfo(133)), (GetSpellInfo(44614)) });
     elseif self.IsCata() then
         self:RegisterAura("brain_freeze", 0, 57761, "brain_freeze", "Top (CW)", 1, 255, 255, 255, true, { (GetSpellInfo(133)), (GetSpellInfo(44614)) });
+    elseif self.IsMoP() then
+        self:RegisterAura("brain_freeze", 0, 57761, "brain_freeze", "Top", 1, 255, 255, 255, true, { (GetSpellInfo(44614)) });
     end
 
     -- Arcane Procs
@@ -631,7 +639,7 @@ local function registerClass(self)
         self:RegisterAura("missile_barrage", 0, 400589, "arcane_missiles", "Left + Right (Flipped)", 0.8, 103, 184, 238, true, { (GetSpellInfo(5143)) });
     elseif self.IsWrath() then
         self:RegisterAura("missile_barrage", 0, 44401, "arcane_missiles", "Left + Right (Flipped)", 1, 255, 255, 255, true, { (GetSpellInfo(5143)) });
-    elseif self.IsCata() then
+    elseif self.IsCata() or self.IsMoP() then
         useArcaneMissiles();
     end
     if self.IsCata() then
@@ -701,7 +709,9 @@ local function loadOptions(self)
     local fingersOfFrostTalent = 44543;
     local fingersOfFrostSoDBuff = 400670;
     local fingersOfFrostSoDTalent = fingersOfFrostSoDBuff; -- Not really a talent
-
+    local fingersOfFrostMoPBuff= fingersOfFrostBuffCata;
+    local fingersOfFrostMoPTalent = fingersOfFrostMoPBuff; -- Not a talent
+    
     local arcaneBlastSoDBuff = 400573;
     local missileBarrageSoDRune = 400588;
     local missileBarrageSoDBuff = 400589;
@@ -754,17 +764,23 @@ local function loadOptions(self)
         self:AddOverlayOption(hotStreakTalent, hotStreakBuff, 0, hotStreakDetails);
         self:AddOverlayOption(hotStreakTalent, hotStreakHeatingUpBuff, 0, hotStreakHeatingUpDetails);
     end
-    self:AddOverlayOption(firestarterTalent, firestarterBuff);
+    if not self.IsMoP() then
+        self:AddOverlayOption(firestarterTalent, firestarterBuff);
+    end
     if self.IsSoD() then
         self:AddOverlayOption(fingersOfFrostSoDTalent, fingersOfFrostSoDBuff, 0, nil, nil, 2); -- setup any stacks, test with 2 stacks
     elseif self.IsWrath() then
         self:AddOverlayOption(fingersOfFrostTalent, fingersOfFrostBuffWrath, 0, nil, nil, 2); -- setup any stacks, test with 2 stacks
-    elseif self.IsCata() then
+    elseif self.IsCata()  then
         self:AddOverlayOption(fingersOfFrostTalent, fingersOfFrostBuffCata, 0, nil, nil, 2); -- setup any stacks, test with 2 stacks
+    elseif self.IsMoP()  then
+        self:AddOverlayOption(fingersOfFrostMoPBuff, fingersOfFrostMoPBuff, 0, nil, nil, 2); -- setup any stacks, test with 2 stacks
     end
     self:AddOverlayOption(FrozenHandler.freezeTalent, FrozenHandler.freezeID, 0, self:translateDebuff(), nil, nil, FrozenHandler.fakeSpellID);
     if self.IsSoD() then
         self:AddOverlayOption(brainFreezeSoDRune, brainFreezeSoDBuff);
+    elseif self.IsMoP() then
+        self:AddOverlayOption(brainFreezeBuff, brainFreezeBuff);
     else
         self:AddOverlayOption(brainFreezeTalent, brainFreezeBuff);
     end
@@ -782,7 +798,7 @@ local function loadOptions(self)
         self:AddGlowingOption(hotStreakSoDRune, hotStreakSoDBuff, pyroblast);
     elseif self.IsWrath() then
         self:AddGlowingOption(hotStreakTalent, hotStreakBuff, pyroblast);
-    elseif self.IsCata() then
+    elseif self.IsCata() or self.IsMoP() then
         self:AddGlowingOption(hotStreakTalent, hotStreakBuff, pyroblastBang);
     end
     if self.IsWrath() then
@@ -792,6 +808,9 @@ local function loadOptions(self)
         self:AddGlowingOption(brainFreezeSoDRune, brainFreezeSoDBuff, fireball);
         self:AddGlowingOption(brainFreezeSoDRune, brainFreezeSoDBuff, spellfrostBoltSoD);
         self:AddGlowingOption(brainFreezeSoDRune, brainFreezeSoDBuff, frostfireBoltSoD);
+    elseif self.IsMoP() then
+        self:AddGlowingOption(brainFreezeBuff, brainFreezeBuff, fireball);
+        self:AddGlowingOption(brainFreezeBuff, brainFreezeBuff, frostfireBolt);
     else
         self:AddGlowingOption(brainFreezeTalent, brainFreezeBuff, fireball);
         self:AddGlowingOption(brainFreezeTalent, brainFreezeBuff, frostfireBolt);
@@ -809,6 +828,11 @@ local function loadOptions(self)
     elseif self.IsCata() then
         self:AddGlowingOption(fingersOfFrostTalent, fingersOfFrostBuffCata, iceLance);
         self:AddGlowingOption(fingersOfFrostTalent, fingersOfFrostBuffCata, deepFreeze);
+        self:AddGlowingOption(FrozenHandler.freezeTalent, FrozenHandler.freezeID, iceLance);
+        self:AddGlowingOption(FrozenHandler.freezeTalent, FrozenHandler.freezeID, deepFreeze);
+    elseif self.IsMoP() then
+        self:AddGlowingOption(fingersOfFrostMoPBuff, fingersOfFrostMoPBuff, iceLance);
+        self:AddGlowingOption(fingersOfFrostMoPBuff, fingersOfFrostMoPBuff, deepFreeze);
         self:AddGlowingOption(FrozenHandler.freezeTalent, FrozenHandler.freezeID, iceLance);
         self:AddGlowingOption(FrozenHandler.freezeTalent, FrozenHandler.freezeID, deepFreeze);
     end

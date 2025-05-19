@@ -7,8 +7,6 @@ local ShortAddonName = strlower(AddonName):sub(0,8) == "necrosis" and "Necrosis"
 local GetActionInfo = GetActionInfo
 local GetMacroSpell = GetMacroSpell
 local GetNumSpellTabs = GetNumSpellTabs
-local GetNumTalents = GetNumTalents
-local GetNumTalentTabs = GetNumTalentTabs
 local GetSpellBookItemName = GetSpellBookItemName
 local GetSpellCooldown = GetSpellCooldown
 local GetSpellInfo = GetSpellInfo
@@ -348,23 +346,18 @@ end
 ]]
 
 --[[
-    Utility function to know how many talent points the player has spent on a specific talent
-
     If the talent is found, returns:
-    - the number of points spent for this talent
-    - the total number of points possible for this talent
-    - the tabulation in which the talent was found
-    - the index in which the talent was found
-    Tabulation and index can be re-used in GetTalentInfo to avoid re-parsing all talents
 
     Returns nil if no talent is found with this name e.g., in the wrong expansion
 ]]
 function SAO.GetTalentByName(self, talentName)
-    for tab = 1, GetNumTalentTabs() do
-        for index = 1, GetNumTalents(tab) do
-            local name, iconTexture, tier, column, rank, maxRank, isExceptional, available = GetTalentInfo(tab, index);
-            if (name == talentName) then
-                return rank, maxRank, tab, index;
+    activeSpec = C_SpecializationInfo.GetActiveSpecGroup()
+    for tier = 1, 6 do
+        for col = 1, 3 do
+            local _, talName, _, _, _, _, _, talRow, talColumn, talKnown, _ = C_SpecializationInfo.GetTalentInfo({tier = tier, column = col, specializationIndex = activeSpec});
+--/run print(C_SpecializationInfo.GetTalentInfo({tier = 1, column = 1, specializationIndex = 1}))   -- WTF
+            if (talName == talentName) then
+                return talKnown, talRow, talColumn;
             end
         end
     end

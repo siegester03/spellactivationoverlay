@@ -53,9 +53,10 @@ function SpellActivationOverlay_OnLoad(self)
 		SAO.Shutdown:EnableCategory("UNSUPPORTED_CLASS");
 	end
 
-	if ( SAO.IsCata() ) then
+	if ( SAO.IsCata() or SAO.IsMoP() ) then
 		-- These events do not exist in Classic Era, Burning Crusade Classic, nor Wrath Classic
 		-- They have yet to be confirmed for Cataclysm, but they could (should?) exist
+		-- They do fire in MoP beta, but this is a bigger refactor than I have time for
 		self:RegisterEvent("SPELL_ACTIVATION_OVERLAY_SHOW");
 		self:RegisterEvent("SPELL_ACTIVATION_OVERLAY_HIDE");
 	end
@@ -166,6 +167,8 @@ function SpellActivationOverlay_OnEvent(self, event, ...)
 	But we have added a few parameters since then - must add missing parameters if needed
 	For now, we simply write debug information to try to confirm these events are emitted
 ]]
+
+-- this triggers in MoP
 	if ( event == "SPELL_ACTIVATION_OVERLAY_SHOW" ) then
 		local spellID, texture, positions, scale, r, g, b = ...;
 		SAO:Debug(Module, "Received native SPELL_ACTIVATION_OVERLAY_SHOW with spell ID "..tostring(spellID)..", texture "..tostring(texture)..", positions '"..tostring(positions).."', scale "..tostring(scale)..", (r g b) = ("..tostring(r).." "..tostring(g).." "..tostring(b)..")");
